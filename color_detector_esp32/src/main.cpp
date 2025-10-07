@@ -32,7 +32,7 @@ void display_splash_screen();
 
 // Mapping for different color logic paths.
 //  Warning: Order is assumed elsewhere through direct mapping using integers 
-//    and should not be modified.
+//    and should not be modified without significant code review.
 enum COLOR_CHANNELS {
   RED =   0,
   GREEN = 1,
@@ -174,68 +174,6 @@ Adafruit_SSD1306 screen(OLED_WIDTH, OLED_HEIGHT, &Wire, -1);
 //------------------------------------------------------------------------------
 
 
-// Notes:
-//  **** - We need to calibrate while on final battery power, the returned 
-//    values change considerably with the drop from steady 5V to unsteady ~4V.
-//    Likely this has to do with the square wave read in not having as steady a
-//    reference voltage, it probably assumes 5V or something like that.
-//    To easily map the returned values from whatever to 0-255 use the map()
-//      function: map(input_val, min_out_val, max_out_val, 255, 0);
-//        Verify that these parameters are mapped correctly, think the max/min
-//        output reversal order is to reverse the mapping to get proper RGB 
-//        values since the basic output from the sensor is reversed from the 
-//        typical RGB value reading values.
-//        For this we want to connect to battery power, get red, green, and blue
-//        test surfaces, run each a few times, note the min and max values for
-//        each channel, then set the mapping for each channel using those min/
-//        max values.
-//
-//  Clear removes the filters that are in place when reading the specific RGB
-//    values, this helps the sensor operate in dim light but (I think) more
-//    importantly serves as a calibration value for the more specific readings.
-//    Perhaps something like we want to subtract this amount from all the other
-//      amounts? This is just conjecture though, probably not worth the effort
-//      for this project.
-//
-//  Can programatically turn off the color sensor board by setting S0 and S1 to
-//    LOW. Not sure if this will ever be useful or not since this doesn't effect
-//    the LEDs on that board.
-
-// TODO:
-//  Need to record some or all of this code production.
-//    i.e. we need to screen record moving this code from here and into a new
-//    file just for the recording, don't need to use that code, just need some
-//    clips or something of programming parts/all of this.
-//
-//  Need to get the input into a state where we know we can work with it before
-//    proceeding to the case build.
-//    Actually walking back on this a little bit, think we can proceed 
-//      regardless of performance since realistically the only thing we will 
-//      want to change here is the LED placement. The other solutions are all
-//      going to be in software or prohibitive for one reason or another.
-//    To this end may be worth trying out the sensor inside a tube, like it will
-//      be eventually (i.e. in this scenario we've found it best to push the
-//      sensor back up in a tube a little ways which may be true).
-//    May also be worth testing out some magnification, the clip on lens we have
-//      for cell phone cameras is a good candidate here as we could use that in
-//      the actual build directly.
-//      The eye glass attachment magnifying lenses could work well too.
-//    May just need some cleaner test materials for calibration, finding some
-//      things that are much more clearly red green and blue.
-//    May just need to fudge this and have the final product not show the actual
-//      RGB readouts. Concievably we could make this work for very basic colors,
-//      and leave the rest out.
-//    May be worth adding in external light, or removing the onboard LEDs and 
-//      replacing them with longer leads or something we can angle inwards 
-//      towards the sensor better since this is how I see all the guides using 
-//      this module.
-//  
-//  Think we can cheese this hard by restricting colors to black, white, and RGB
-//    RGB determined by choosing the highest value of the three channels, and 
-//      picking black or white if each of the channels is within some margin of
-//      each other or all channels are above/below some threshold at the same 
-//      time.
-
 void setup() {
   // Color sensor communication pins setup
   //pinMode(S0, OUTPUT);
@@ -294,7 +232,7 @@ void loop() {
   screen.display();
 
   /*
-  // Calibration settings stuff, can remove once the system is built.
+  // Data for manual calibration setting. 
   Serial.println("------------------------------");
   Serial.print("R-min: ");
   Serial.print(color_min_max_readings[COLOR_CHANNELS::RED][0]);
@@ -361,11 +299,9 @@ int read_color_channel(uint8_t &color_index){
   // TODO: on the first pass this could technically update both min and max 
   //  values with the same reading. This shouldn't be an issue but if it is just
   //  remove the else and run each check on each loop.
-  // TODO: determine if this is an appropriate method for rough setting the min
-  //  max values. If not we can remove it, or move it into some sort of 
-  //  calibration mode. Currently we aren't using these values for anything, 
-  //  unless we print them to the console.
   // Check for localized min/max reading and update the storage array if so.
+  //  Note: currently this is only used to display to the programmer the local
+  //    extrema of TCS raw readings for manual calibration purposes.
   if(ret_val < color_min_max_readings[color_index][0]){
     // Set new minimum.
     color_min_max_readings[color_index][0] = ret_val;
@@ -410,7 +346,6 @@ void write_color_to_display(uint8_t &color_index){
   screen.print(color_readings[color_index]);
 
   // Map the values to a human readable format and print to display.
-  //char out_str[RGB_DISPLAY_STR_MAX_LEN] = "MAP ERR";
   uint8_t map_val = map_color_vals();
 
   // TODO: need to define this color string readout cursor location as a 
@@ -419,20 +354,10 @@ void write_color_to_display(uint8_t &color_index){
   screen.setTextSize(2);
 
   // Write the human readable mapped RGB color value to the OLED screen.
-  if(map_val < RGB_VAL_MAPPING_LEN){
-    // TEMP: just for the thumbnail
+  if(map_val < RGB_VAL_MAPPING_LEN)
     screen.print(RGB_DISPLAY_MAP[COLOR_STR_MAP::BLACK_STR]);
-    //screen.print(RGB_DISPLAY_MAP[map_val]);
-  }
-  else{
-    /*
-    Serial.print("RGB->Str mapping error for RGB values: ");
-    for(int i=0; i<3; i++)
-      Serial.println(color_readings[i]);
-    */
-
+  else
     screen.print("MAP ERR");
-  }
 
   return;
 }
@@ -585,6 +510,8 @@ uint8_t map_color_vals(){
   // Method using the Euclidean distance formula.
   //  This method is much more verbose, but also much more dependent on clean
   //    input data, so it didn't work well.
+  //  Keeping it here as a reference if any future development tries to take 
+  //    this further.
   //    Math.sqrt(
   //            Math.pow(targetRgb[0] - reading[0], 2) +
   //            Math.pow(targetRgb[1] - reading[1], 2) +
@@ -600,12 +527,6 @@ uint8_t map_color_vals(){
       pow(RGB_VALS[i][1] - color_readings[1], 2) + 
       pow(RGB_VALS[i][2] - color_readings[2], 2)
     );
-
-    //Serial.print(RGB_VALS[i][0]);
-    //Serial.print(" - ");
-    //Serial.print(color_readings[0]);
-    //Serial.print(" = ");
-    //Serial.println(RGB_VALS[i][0] - color_readings[0]);
 
     if(dist < min_dist){
       min_dist = dist;
