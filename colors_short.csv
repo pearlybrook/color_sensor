@@ -1,0 +1,13 @@
+black,"Black",#000,0,0,0
+white,"White",#fff,255,255,255
+red,"Red",#f00,255,0,0
+blue,"Blue",#00f,0,0,255
+yellow,"Yellow",#ff0,255,255,0
+cyan,"Cyan",#0ff,0,255,255
+magenta,"Magenta",#f0f,255,0,255
+silver,"Silver",#c0c0c0,192,192,192
+gray,"Gray",#808080,128,128,128
+olive,"Olive",#808000,128,128,0
+green,"Green",#008000,0,128,0
+purple,"Purple",#800080,128,0,128
+teal,"Teal",#008080,0,128,128
